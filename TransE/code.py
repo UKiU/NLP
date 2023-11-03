@@ -56,9 +56,9 @@ for epoch in range(epochs):
         for j in range(len(batch)):
             if loss[j] > 0:
                 grad_pos_head = 2 * (entity_embeddings[pos_heads[j]] + relation_embeddings[pos_relations[j]] - entity_embeddings[pos_tails[j]])
-                grad_pos_tail = -2 * (entity_embeddings[pos_heads[j]] + relation_embeddings[pos_relations[j]] - entity_embeddings[pos_tails[j])
+                grad_pos_tail = -2 * (entity_embeddings[pos_heads[j]] + relation_embeddings[pos_relations[j]] - entity_embeddings[pos_tails[j]])
                 grad_neg_head = 2 * (entity_embeddings[neg_heads[j]] + relation_embeddings[neg_relations[j]] - entity_embeddings[neg_tails[j]])
-                grad_neg_tail = -2 * (entity_embeddings[neg_heads[j]] + relation_embeddings[neg_relations[j]] - entity_embeddings[neg_tails[j])
+                grad_neg_tail = -2 * (entity_embeddings[neg_heads[j]] + relation_embeddings[neg_relations[j]] - entity_embeddings[neg_tails[j]])
 
                 entity_embeddings[pos_heads[j]] -= learning_rate * grad_pos_head
                 entity_embeddings[pos_tails[j]] -= learning_rate * grad_pos_tail
