@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.spatial.distance import cdist
-
+import random
 # Hyperparameters
 learning_rate = 0.01
 embedding_dim = 50
@@ -19,6 +19,9 @@ class TransE:
         # Create dictionaries to map entities and relations to unique IDs
         self.entity2id = {entity: idx for idx, entity in enumerate(self.entities)}
         self.relation2id = {relation: idx for idx, relation in enumerate(self.relations)}
+
+        self.id2entity = {idx: entity for idx, entity in enumerate(self.entities)}
+        self.id2relation = {idx: relation for idx, relation in enumerate(self.relations)}
 
         # Initialize entity and relation embeddings randomly
         self.entity_embeddings = np.random.rand(len(self.entities), embedding_dim)
@@ -84,7 +87,6 @@ class TransE:
         np.save("relation_embeddings.npy", self.relation_embeddings)
 
     def predict_tail(self):
-        print(self.entity_embeddings, self.relations)
         for i in range(len(self.entity_embeddings)):
             head_embedding = self.entity_embeddings[i]
             relation_embedding = self.relation_embeddings[0]
@@ -94,21 +96,40 @@ class TransE:
             # 计算与关系向量最近的关系嵌入向量，即预测的关系
             distances = cdist([tail_embedding], self.entity_embeddings, metric='euclidean')
             predicted_tail_index = np.argmin(distances)
-            print(self.entities[i],self.entities[predicted_tail_index])
-            # return self.relations[predicted_relation_index]
+            print(self.id2entity[i], self.id2entity[predicted_tail_index])
 
+def generate_triples(num):
+    entities = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
+    relations = ['related1_to', 'related2_to', 'relation3_to', 'relation4_to', 'relation5_to', 'relation6_to']
+    triples = []
+
+    for _ in range(num):
+        entity1 = random.choice(entities)
+        entity2 = random.choice(entities)
+        while entity1 == entity2:
+            entity2 = random.choice(entities)
+        triple = (entity1, random.choice(relations), entity2)
+        triples.append(triple)
+
+    # 打印生成的数据结构
+    for triple in triples:
+        print(triple)
+    return triples
 
 if __name__ == "__main__":
     # Data preparation: You need to have a knowledge graph in the form of triples (head, relation, tail)
     # In this example, I'll use a small toy knowledge graph
+
+    # 随机生成函数优点问题，先别用
+    # triples=generate_triples(200)
     triples = [
         ("A", "related_to", "B"),
         ("B", "related_to", "C"),
         ("D", "related_to", "C"),
         ("E", "related_to", "F"),
-        ("F", "related_to", "A")
     ]
 
     test = TransE(triples)
     test.train()
     test.predict_tail()
+    print(test.entity2id,test.relation2id)
