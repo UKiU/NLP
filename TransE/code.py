@@ -116,6 +116,31 @@ def generate_triples(num):
         print(triple)
     return triples
 
+def Wn18Totriples(file_path):
+    entity2id = {}
+    relation2id = {}
+    train_triples = []
+    valid_triples = []
+    test_triples = []
+    with open(file_path + 'entity.txt') as f:
+        for line in f:
+            entity, entity_id = line.strip().split('\t')
+            entity2id[entity] = int(entity_id)
+    with open(file_path + 'relation.txt') as f:
+        for line in f:
+            relation, relation_id = line.strip().split('\t')
+            relation2id[relation] = int(relation_id)
+    def parse_triples(file_path, triples):
+        with open(file_path) as f:
+            for line in f:
+                head, relation, tail = line.strip().split('\t')
+                triples.append((entity2id[head], relation2id[relation], entity2id[tail]))
+    parse_triples(file_path + 'train.txt', train_triples)
+    parse_triples(file_path + 'valid.txt', valid_triples)
+    parse_triples(file_path + 'test.txt', test_triples)
+    return entity2id, relation2id, train_triples, valid_triples, test_triples
+
+
 if __name__ == "__main__":
     # Data preparation: You need to have a knowledge graph in the form of triples (head, relation, tail)
     # In this example, I'll use a small toy knowledge graph
@@ -125,7 +150,8 @@ if __name__ == "__main__":
     triples = [
         ("A", "related_to", "B"),
         ("B", "related_to", "C"),
-        ("D", "related_to", "C"),
+        ("C", "related_to", "D"),
+        ("D", "related_to", "E"),
         ("E", "related_to", "F"),
     ]
 
