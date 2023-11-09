@@ -4,11 +4,16 @@ import random
 import pickle
 
 # Hyperparameters
+#学习率
 learning_rate = 0.01
+#实体、关系维度
 embedding_dim = 50
+#正例、负例边界
 margin = 1.0
+#训练轮次
 epochs = 10
-batch_size = 128
+#训练批次
+batch_size = 256
 
 
 
@@ -32,7 +37,7 @@ class TransE:
         self.learning_rate = learning_rate
         self.margin = margin
 
-    def predict(self, head, relation, tail, threshold=1.0):
+    def predict(self, head, relation, tail):
         # Look up the embeddings for the entities and relation
         e1 = self.entity_embeddings[self.entity2id[head]]
         rel = self.relation_embeddings[self.relation2id[relation]]
@@ -42,7 +47,7 @@ class TransE:
         score = np.linalg.norm(e1 + rel - e2)
 
         # If the score is above the threshold, predict 1 (true), otherwise predict 0 (false)
-        if score <= threshold:
+        if score <= margin:
             return 1
         else:
             return 0
@@ -64,7 +69,7 @@ class TransE:
             loss = 0
 
             for i in range(0, len(self.train_triples), batch_size):
-                print("{} / {}".format(i,len(self.train_triples)))
+
                 batch = self.train_triples[i:i + batch_size]
                 for head, relation, tail in batch:
                     e1 = self.entity_embeddings[self.entity2id[head]]
