@@ -1,90 +1,96 @@
 import numpy as np
 from scipy.spatial.distance import cdist
 import random
+import pickle
+
 # Hyperparameters
 learning_rate = 0.01
 embedding_dim = 50
 margin = 1.0
-epochs = 100
+epochs = 10
 batch_size = 128
 
 
+
 class TransE:
-    def __init__(self, triples):
-        self.triples = triples
+    def __init__(self, entity2id, relation2id, train_triples, valid_triples, test_triples):
         # Extract unique entities and relations
-        self.entities = list(set([triple[0] for triple in triples] + [triple[2] for triple in triples]))
-        self.relations = list(set([triple[1] for triple in triples]))
-
+        self.entities = entity2id.keys()
+        self.relations = relation2id.keys()
         # Create dictionaries to map entities and relations to unique IDs
-        self.entity2id = {entity: idx for idx, entity in enumerate(self.entities)}
-        self.relation2id = {relation: idx for idx, relation in enumerate(self.relations)}
-
-        self.id2entity = {idx: entity for idx, entity in enumerate(self.entities)}
-        self.id2relation = {idx: relation for idx, relation in enumerate(self.relations)}
+        self.entity2id, self.relation2id = entity2id, relation2id
+        # self.id2entity = {v: k for k, v in entity2id.items()}
+        # self.id2relation = {v: k for k, v in relation2id.items()}
 
         # Initialize entity and relation embeddings randomly
         self.entity_embeddings = np.random.rand(len(self.entities), embedding_dim)
         self.relation_embeddings = np.random.rand(len(self.relations), embedding_dim)
 
-    def train(self):
+        self.train_triples = train_triples
+        self.valid_triples = valid_triples
+        self.test_triples = test_triples
+        self.learning_rate = learning_rate
+        self.margin = margin
 
+    def predict(self, head, relation, tail, threshold=1.0):
+        # Look up the embeddings for the entities and relation
+        e1 = self.entity_embeddings[self.entity2id[head]]
+        rel = self.relation_embeddings[self.relation2id[relation]]
+        e2 = self.entity_embeddings[self.entity2id[tail]]
+
+        # Calculate the score using cosine similarity
+        score = np.linalg.norm(e1 + rel - e2)
+
+        # If the score is above the threshold, predict 1 (true), otherwise predict 0 (false)
+        if score <= threshold:
+            return 1
+        else:
+            return 0
+
+    def calculate_score(self, head, relation, tail):
+        e1 = self.entity_embeddings[self.entity2id[head]]
+        rel = self.relation_embeddings[self.relation2id[relation]]
+        e2 = self.entity_embeddings[self.entity2id[tail]]
+
+        # Calculate the score using the L1 distance
+        score = np.linalg.norm(e1 + rel - e2)
+        return score
+
+    def train(self):
+        print("start training...")
         # Training loop
         for epoch in range(epochs):
-            np.random.shuffle(self.triples)
-            total_loss = 0
+            np.random.shuffle(self.train_triples)
+            loss = 0
 
-            for i in range(0, len(self.triples), batch_size):
-                batch = self.triples[i:i + batch_size]
-                pos_heads = [self.entity2id[triple[0]] for triple in batch]
-                pos_relations = [self.relation2id[triple[1]] for triple in batch]
-                pos_tails = [self.entity2id[triple[2]] for triple in batch]
+            for i in range(0, len(self.train_triples), batch_size):
+                print("{} / {}".format(i,len(self.train_triples)))
+                batch = self.train_triples[i:i + batch_size]
+                for head, relation, tail in batch:
+                    e1 = self.entity_embeddings[self.entity2id[head]]
+                    rel = self.relation_embeddings[self.relation2id[relation]]
+                    e2 = self.entity_embeddings[self.entity2id[tail]]
 
-                # Negative sampling
-                neg_heads = np.random.choice(len(self.entities), len(batch))
-                neg_relations = np.random.choice(len(self.relations), len(batch))
-                neg_tails = np.random.choice(len(self.entities), len(batch))
+                    score_pos = np.linalg.norm(e1 + rel - e2)
+                    # Negative sampling
+                    neg_entity = random.choice(list(self.entities - {head, tail}))
+                    e2_neg = self.entity_embeddings[self.entity2id[neg_entity]]
+                    score_neg = np.linalg.norm(e1 + rel - e2_neg)
+                    loss = max(0, self.margin + score_neg - score_pos)
+                    gradient_pos = 2 * (e1 + rel - e2)
+                    gradient_neg = 2 * (e1 + rel - e2_neg)
+                    self.entity_embeddings[self.entity2id[head]] -= self.learning_rate * gradient_pos
+                    self.entity_embeddings[self.entity2id[tail]] += self.learning_rate * gradient_pos
+                    self.entity_embeddings[self.entity2id[neg_entity]] -= self.learning_rate * gradient_neg
+                    self.relation_embeddings[self.relation2id[relation]] -= self.learning_rate * gradient_pos
 
-                # Calculate the score for positive and negative triples
-                pos_scores = np.linalg.norm(
-                    self.entity_embeddings[pos_heads] + self.relation_embeddings[pos_relations] -
-                    self.entity_embeddings[pos_tails], axis=1)
-                neg_scores = np.linalg.norm(
-                    self.entity_embeddings[neg_heads] + self.relation_embeddings[neg_relations] -
-                    self.entity_embeddings[neg_tails], axis=1)
-
-                # Compute the margin loss
-                loss = np.maximum(0, margin + pos_scores - neg_scores)
-                total_loss += np.sum(loss)
-
-                # Compute the gradients and update embeddings
-                for j in range(len(batch)):
-                    if loss[j] > 0:
-                        grad_pos_head = 2 * (
-                                self.entity_embeddings[pos_heads[j]] + self.relation_embeddings[pos_relations[j]] -
-                                self.entity_embeddings[pos_tails[j]])
-                        grad_pos_tail = -2 * (
-                                self.entity_embeddings[pos_heads[j]] + self.relation_embeddings[pos_relations[j]] -
-                                self.entity_embeddings[pos_tails[j]])
-                        grad_neg_head = 2 * (
-                                self.entity_embeddings[neg_heads[j]] + self.relation_embeddings[neg_relations[j]] -
-                                self.entity_embeddings[neg_tails[j]])
-                        grad_neg_tail = -2 * (
-                                self.entity_embeddings[neg_heads[j]] + self.relation_embeddings[neg_relations[j]] -
-                                self.entity_embeddings[neg_tails[j]])
-
-                        self.entity_embeddings[pos_heads[j]] -= learning_rate * grad_pos_head
-                        self.entity_embeddings[pos_tails[j]] -= learning_rate * grad_pos_tail
-                        self.entity_embeddings[neg_heads[j]] -= learning_rate * grad_neg_head
-                        self.entity_embeddings[neg_tails[j]] -= learning_rate * grad_neg_tail
-                        self.relation_embeddings[pos_relations[j]] -= learning_rate * grad_pos_head
-                        self.relation_embeddings[neg_relations[j]] -= learning_rate * grad_neg_head
-
-            print(f"Epoch {epoch + 1}, Loss: {total_loss}")
-
-        # Save the learned embeddings for future use
-        np.save("entity_embeddings.npy", self.entity_embeddings)
-        np.save("relation_embeddings.npy", self.relation_embeddings)
+            correct = 0
+            for head, relation, tail in self.valid_triples:
+                pred = self.predict(head, relation, tail)
+                if pred == 1:
+                    correct += 1
+            accuracy = float(correct) / len(self.valid_triples)
+            print("Epoch {}: accuracy = {}".format(epoch, accuracy))
 
     def predict_tail(self):
         for i in range(len(self.entity_embeddings)):
@@ -97,6 +103,7 @@ class TransE:
             distances = cdist([tail_embedding], self.entity_embeddings, metric='euclidean')
             predicted_tail_index = np.argmin(distances)
             print(self.id2entity[i], self.id2entity[predicted_tail_index])
+
 
 def generate_triples(num):
     entities = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K']
@@ -116,25 +123,28 @@ def generate_triples(num):
         print(triple)
     return triples
 
-def Wn18Totriples(file_path):
+
+def Wn18RR2triples(file_path="../src/WN18RR/"):
     entity2id = {}
     relation2id = {}
     train_triples = []
     valid_triples = []
     test_triples = []
-    with open(file_path + 'entity.txt') as f:
+    with open(file_path + 'entity2id.txt') as f:
         for line in f:
             entity, entity_id = line.strip().split('\t')
             entity2id[entity] = int(entity_id)
-    with open(file_path + 'relation.txt') as f:
+    with open(file_path + 'relation2id.txt') as f:
         for line in f:
             relation, relation_id = line.strip().split('\t')
             relation2id[relation] = int(relation_id)
+
     def parse_triples(file_path, triples):
         with open(file_path) as f:
             for line in f:
                 head, relation, tail = line.strip().split('\t')
-                triples.append((entity2id[head], relation2id[relation], entity2id[tail]))
+                triples.append((head, relation, tail))
+
     parse_triples(file_path + 'train.txt', train_triples)
     parse_triples(file_path + 'valid.txt', valid_triples)
     parse_triples(file_path + 'test.txt', test_triples)
@@ -142,20 +152,11 @@ def Wn18Totriples(file_path):
 
 
 if __name__ == "__main__":
-    # Data preparation: You need to have a knowledge graph in the form of triples (head, relation, tail)
-    # In this example, I'll use a small toy knowledge graph
-
-    # 随机生成函数优点问题，先别用
     # triples=generate_triples(200)
-    triples = [
-        ("A", "related_to", "B"),
-        ("B", "related_to", "C"),
-        ("C", "related_to", "D"),
-        ("D", "related_to", "E"),
-        ("E", "related_to", "F"),
-    ]
-
-    test = TransE(triples)
+    entity2id, relation2id, train_triples, valid_triples, test_triples = Wn18RR2triples()
+    test = TransE(entity2id, relation2id, train_triples, valid_triples, test_triples)
     test.train()
-    test.predict_tail()
-    print(test.entity2id,test.relation2id)
+    with open('model.pkl', 'wb') as f:
+        pickle.dump(test, f)
+    # test.predict_tail()
+    # print(test.entity2id,test.relation2id)
