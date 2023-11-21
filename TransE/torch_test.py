@@ -506,5 +506,5 @@ if __name__=='__main__':
 
     # entity_list,relation_list,entity2id, relation2id, train_triples, valid_triples, test_triples, relation_tph, relation_hpt, norm=2, C=1.0):
     transE = TransE(entity_list,relation_list,entity2id, relation2id, train_triples, valid_triples, test_triples, relation_tph, relation_hpt)
-    transE.training_run(out_file_title="WN18_torch_")
+    transE.training_run(out_file_title="WN18RR_torch_")
     transE.test_run(filter=True)
