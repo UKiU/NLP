@@ -1,4 +1,3 @@
-# KGdatasets
 
 Statistical information of different datasets：
 
