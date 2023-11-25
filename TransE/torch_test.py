@@ -14,13 +14,13 @@ import operator  # operator模块输出一系列对应Python内部操作符的�
 
 # Hyperparameters
 # 学习率
-learning_rate = 0.01
+learning_rate = 0.001
 # 实体、关系维度
 embedding_dim = 128
 # 正例、负例边界
-margin = 1.0
+margin = 1
 # 训练轮次
-epochs = 50
+epochs = 100
 # 训练批次
 batch_size = 128
 
@@ -503,8 +503,10 @@ if __name__=='__main__':
     if torch.cuda.is_available():
         device = torch.device("cuda")
     entity_list, relation_list, entity2id, relation2id, train_triples, valid_triples, test_triples, relation_tph, relation_hpt=Wn18RR2triples()
+    # entity_list, relation_list, entity2id, relation2id, train_triples, valid_triples, test_triples, relation_tph, relation_hpt=Wn18RR2triples(file_path="../src/Kinship/")
 
     # entity_list,relation_list,entity2id, relation2id, train_triples, valid_triples, test_triples, relation_tph, relation_hpt, norm=2, C=1.0):
-    transE = TransE(entity_list,relation_list,entity2id, relation2id, train_triples, valid_triples, test_triples, relation_tph, relation_hpt)
+    transE = TransE(entity_list,relation_list,entity2id, relation2id, train_triples, valid_triples, test_triples, relation_tph, relation_hpt,norm=2)
     transE.training_run(out_file_title="WN18RR_torch_")
+    # transE.training_run(out_file_title="Kinship_torch_")
     transE.test_run(filter=True)
