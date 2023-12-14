@@ -2,5 +2,7 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/GNN/RGCN" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/GNN/torch-rgcn" vcs="Git" />
   </component>
 </project>

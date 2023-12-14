@@ -27,7 +27,7 @@ batch_size = 128
 # entity2id, relation2id 是{字符：序号}的字典
 # train_triples, valid_triples, test_triples是[（h,r,t）]的列表，h,r,t为字符
 # relation_tph, relation_hpt是 tph 表示每一个头结对应的平均尾节点数 hpt 表示每一个尾节点对应的平均头结点数
-def Wn18RR2triples(file_path="../src/WN18RR/"):
+def Wn18RR2triples(file_path="../data/WN18RR/"):
     print("load file...")
     entity_list = []
     relation_list = []
@@ -104,6 +104,85 @@ def Wn18RR2triples(file_path="../src/WN18RR/"):
         len(entity2id), len(relation2id), len(train_triples), len(valid_triples),len(test_triples)))
 
     return entity_list,relation_list,entity2id, relation2id, train_triples, valid_triples, test_triples, relation_tph, relation_hpt
+
+def FB15k2triples(file_path="../data/FB15k-237/"):
+    print("load file...")
+    entity_list = []
+    relation_list = []
+    entity2id = {}
+    relation2id = {}
+    train_triples = []
+    valid_triples = []
+    test_triples = []
+
+    relation_tph = {}
+    relation_hpt = {}
+    relation_head = {}
+    relation_tail = {}
+
+    with open(file_path + 'entities.dict') as f:
+        for line in f:
+            entity_id, entity = line.strip().split('\t')
+            entity_list.append(int(entity_id))
+            entity2id[entity] = int(entity_id)
+    with open(file_path + 'relations.dict') as f:
+        for line in f:
+            relation_id, relation = line.strip().split('\t')
+            relation_list.append(int(relation_id))
+            relation2id[relation] = int(relation_id)
+
+    def parse_triples(file_path, triples):
+        with open(file_path) as f:
+            for line in f:
+                head, relation, tail = line.strip().split('\t')
+                h_ = int(entity2id[head])
+                r_ = int(relation2id[relation])
+                t_ = int(entity2id[tail])
+                triples.append([h_, r_, t_])
+
+                if r_ in relation_head:
+                    if h_ in relation_head[r_]:
+                        relation_head[r_][h_] += 1
+                    else:
+                        relation_head[r_][h_] = 1
+                else:
+                    relation_head[r_] = {}
+                    relation_head[r_][h_] = 1
+
+                if r_ in relation_tail:
+                    if t_ in relation_tail[r_]:
+                        relation_tail[r_][t_] += 1
+                    else:
+                        relation_tail[r_][t_] = 1
+                else:
+                    relation_tail[r_] = {}
+                    relation_tail[r_][t_] = 1
+
+    parse_triples(file_path + 'train.txt', train_triples)
+    parse_triples(file_path + 'valid.txt', valid_triples)
+    parse_triples(file_path + 'test.txt', test_triples)
+
+    for r_ in relation_head:
+        sum1, sum2 = 0, 0
+        for head in relation_head[r_]:
+            sum1 += 1
+            sum2 += relation_head[r_][head]
+        tph = sum2 / sum1
+        relation_tph[r_] = tph
+
+    for r_ in relation_tail:
+        sum1, sum2 = 0, 0
+        for tail in relation_tail[r_]:
+            sum1 += 1
+            sum2 += relation_tail[r_][tail]
+        hpt = sum2 / sum1
+        relation_hpt[r_] = hpt
+
+    print("Complete load. entity : %d , relation : %d , train triple : %d , valid triple : %d , valid triple : %d" % (
+        len(entity2id), len(relation2id), len(train_triples), len(valid_triples),len(test_triples)))
+
+    return entity_list,relation_list,entity2id, relation2id, train_triples, valid_triples, test_triples, relation_tph, relation_hpt
+
 
 def norm_l1(h, r, t):
     return np.sum(np.fabs(h + r - t))
@@ -502,11 +581,11 @@ class TransE:
 if __name__=='__main__':
     if torch.cuda.is_available():
         device = torch.device("cuda")
-    entity_list, relation_list, entity2id, relation2id, train_triples, valid_triples, test_triples, relation_tph, relation_hpt=Wn18RR2triples()
-    # entity_list, relation_list, entity2id, relation2id, train_triples, valid_triples, test_triples, relation_tph, relation_hpt=Wn18RR2triples(file_path="../src/Kinship/")
+    # entity_list, relation_list, entity2id, relation2id, train_triples, valid_triples, test_triples, relation_tph, relation_hpt=Wn18RR2triples()
+    entity_list, relation_list, entity2id, relation2id, train_triples, valid_triples, test_triples, relation_tph, relation_hpt=FB15k2triples()
 
     # entity_list,relation_list,entity2id, relation2id, train_triples, valid_triples, test_triples, relation_tph, relation_hpt, norm=2, C=1.0):
     transE = TransE(entity_list,relation_list,entity2id, relation2id, train_triples, valid_triples, test_triples, relation_tph, relation_hpt,norm=2)
-    transE.training_run(out_file_title="WN18RR_torch_")
-    # transE.training_run(out_file_title="Kinship_torch_")
+    # transE.training_run(out_file_title="WN18RR_torch_")
+    transE.training_run(out_file_title="FB15k-237_torch_")
     transE.test_run(filter=True)

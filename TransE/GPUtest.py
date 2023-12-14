@@ -174,7 +174,7 @@ def generate_triples(num):
     return triples
 
 
-def Wn18RR2triples(file_path="../src/WN18RR/"):
+def Wn18RR2triples(file_path="../data/WN18RR/"):
     entity2id = {}
     relation2id = {}
     train_triples = []
